@@ -1,0 +1,14 @@
+{
+  "name": "ti2-events2url",
+  "version": "1.0.0",
+  "description": "transport events to an url",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Salvador Aceves",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "limit-object-size": "^1.0.0"
+  }
+}
