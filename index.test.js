@@ -33,4 +33,22 @@ describe('Plugin', () => {
     expect(mockEventEmitter.on).toHaveBeenCalledWith('request.*', expect.any(Function));
     expect(mockAxiosPost).toHaveBeenCalled();
   });
+
+  test('eventHandler does not process events if eventsURL or axios is missing', () => {
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const pluginWithoutAxios = new Plugin({ eventsURL: 'http://example.com' });
+    pluginWithoutAxios.eventHandler(mockEventEmitter);
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith('[ti2-events2url] Missing eventsURL or axios configuration. Not processing events.');
+    expect(mockEventEmitter.on).not.toHaveBeenCalled();
+
+    consoleWarnSpy.mockClear();
+
+    const pluginWithoutEventsURL = new Plugin({ axios: { post: mockAxiosPost } });
+    pluginWithoutEventsURL.eventHandler(mockEventEmitter);
+    expect(consoleWarnSpy).toHaveBeenCalledWith('[ti2-events2url] Missing eventsURL or axios configuration. Not processing events.');
+    expect(mockEventEmitter.on).not.toHaveBeenCalled();
+
+    consoleWarnSpy.mockRestore();
+  });
 });
