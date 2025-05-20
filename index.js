@@ -17,6 +17,10 @@ class Plugin {
   eventHandler(eventEmmiter) {
     const eventsArr = (this.events2log || 'request.*').split(',');
     const pluginObj = this;
+    if (!pluginObj.eventsURL || !pluginObj.axios) {
+      console.warn('[ti2-events2url] Missing eventsURL or axios configuration. Not processing events.');
+      return;
+    }
     eventsArr.forEach(eventName => {
       eventEmmiter.on(eventName, async function (body) {
         const payload = {
