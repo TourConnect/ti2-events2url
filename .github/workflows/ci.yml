@@ -36,7 +36,9 @@ jobs:
       with:
         node-version: 20.x
         cache: 'npm'
-        token: ${{ secrets.NPM_TOKEN }}
+        registry-url: 'https://registry.npmjs.org/'
     - run: npm ci
-    - name: Publish to GitHub Packages
+    - name: Publish to npmjs
       run: npm publish
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
