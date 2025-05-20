@@ -19,19 +19,15 @@ class Plugin {
     const pluginObj = this;
     eventsArr.forEach(eventName => {
       eventEmmiter.on(eventName, async function (body) {
-        const events = {
-          Entries: [{
-            Detail: JSON.stringify(limitObjectSize({
-              env,
-              ...body,
-            }, (OBJECT_SIZE_LIMIT - 75))),
-            DetailType: this.event,
-            Source: pluginObj.Source || 'ti2',
-          }],
+        const payload = {
+          body,
+          event: eventName,
+          eventTime: new Date().toISOString(),
+          source: pluginObj.Source || 'ti2',
         };
-        if (sizeInKB(JSON.stringify(events)) < OBJECT_SIZE_LIMIT) {
+        if (sizeInKB(JSON.stringify(payload)) < OBJECT_SIZE_LIMIT) {
           try {
-            await pluginObj.axios.post(pluginObj.eventsURL, events);
+            await pluginObj.axios.post(pluginObj.eventsURL, payload);
           } catch (err) {
             const errorInfo = {
               message: err.message,
@@ -39,10 +35,10 @@ class Plugin {
               statusText: err.response && err.response.statusText,
               url: err.config && err.config.url
             };
-            console.error('[ti2-events2url] Failed to send event to eventURL', errorInfo);
+            console.error(`[ti2-events2url] Failed to send event to eventURL`, payload, errorInfo);
           }
         } else {
-          console.log('[ti2-events2url] unable to send event (size constraint)', events);
+          console.log('[ti2-events2url] unable to send event (size constraint)', payload);
         }
       });
     });
