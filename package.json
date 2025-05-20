@@ -1,5 +1,5 @@
 {
-  "name": "ti2-events2url",
+  "name": "@tourconnect/ti2-events2url",
   "version": "1.0.0",
   "description": "transport events to an url",
   "main": "index.js",
@@ -13,5 +13,8 @@
   },
   "dependencies": {
     "limit-object-size": "^1.0.0"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/"
   }
 }

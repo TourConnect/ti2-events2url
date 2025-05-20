@@ -24,3 +24,19 @@ jobs:
     - run: npm ci
     - run: npm test
 
+  publish:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Use Node.js 20.x
+      uses: actions/setup-node@v3
+      with:
+        node-version: 20.x
+        cache: 'npm'
+        token: ${{ secrets.NPM_TOKEN }}
+    - run: npm ci
+    - name: Publish to GitHub Packages
+      run: npm publish
