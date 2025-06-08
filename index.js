@@ -31,7 +31,14 @@ class Plugin {
         };
         if (sizeInKB(JSON.stringify(payload)) < OBJECT_SIZE_LIMIT) {
           try {
-            await pluginObj.axios.post(pluginObj.eventsURL, payload);
+            const options = { headers: {} };
+            
+            // Only add Authorization header if authorization is provided
+            if (pluginObj.authorization) {
+              options.headers.Authorization = pluginObj.authorization;
+            }
+            
+            await pluginObj.axios.post(pluginObj.eventsURL, payload, options);
           } catch (err) {
             const errorInfo = {
               message: err.message,
