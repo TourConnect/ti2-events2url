@@ -89,4 +89,49 @@ describe('Plugin', () => {
       headers: {}
     });
   });
+
+  test('redacts admission tokens from general event requests and failed-delivery logs', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const axios = { post: jest.fn().mockRejectedValue(new Error('network failed')) };
+    let handler;
+    const eventEmitter = {
+      on: jest.fn((_eventName, callback) => {
+        handler = callback;
+      }),
+    };
+    const plugin = new Plugin({
+      eventsURL: 'http://example.com',
+      axios,
+    });
+    plugin.eventHandler(eventEmitter);
+
+    await handler({ fullSyncAdmissionToken: 'reservation-owner' });
+
+    expect(axios.post.mock.calls[0][1].body.fullSyncAdmissionToken)
+      .toBe('[REDACTED]');
+    expect(consoleErrorSpy.mock.calls[0][1].body.fullSyncAdmissionToken)
+      .toBe('[REDACTED]');
+    consoleErrorSpy.mockRestore();
+  });
+
+  test('preserves the admission token only for the trusted product cache-save event', async () => {
+    const axios = { post: jest.fn().mockResolvedValue({}) };
+    let handler;
+    const eventEmitter = {
+      on: jest.fn((_eventName, callback) => {
+        handler = callback;
+      }),
+    };
+    const plugin = new Plugin({
+      events2log: 'bookingsProductSearch:cache:save',
+      eventsURL: 'http://example.com',
+      axios,
+    });
+    plugin.eventHandler(eventEmitter);
+
+    await handler({ fullSyncAdmissionToken: 'reservation-owner' });
+
+    expect(axios.post.mock.calls[0][1].body.fullSyncAdmissionToken)
+      .toBe('reservation-owner');
+  });
 });
