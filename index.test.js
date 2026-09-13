@@ -105,10 +105,15 @@ describe('Plugin', () => {
     });
     plugin.eventHandler(eventEmitter);
 
-    await handler({ fullSyncAdmissionToken: 'reservation-owner' });
+    await handler({
+      fullSyncAdmissionToken: 'reservation-owner',
+      requestedAt: new Date('2026-09-12T12:00:00.000Z'),
+    });
 
     expect(axios.post.mock.calls[0][1].body.fullSyncAdmissionToken)
       .toBe('[REDACTED]');
+    expect(axios.post.mock.calls[0][1].body.requestedAt)
+      .toBe('2026-09-12T12:00:00.000Z');
     expect(consoleErrorSpy.mock.calls[0][1].body.fullSyncAdmissionToken)
       .toBe('[REDACTED]');
     consoleErrorSpy.mockRestore();

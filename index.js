@@ -8,14 +8,10 @@ const {
 const PRODUCT_CACHE_SAVE_EVENT = 'bookingsProductSearch:cache:save';
 
 const redactAdmissionTokens = value => {
-  if (Array.isArray(value)) return value.map(redactAdmissionTokens);
-  if (!value || typeof value !== 'object') return value;
-  return Object.entries(value).reduce((result, [key, item]) => ({
-    ...result,
-    [key]: key === 'fullSyncAdmissionToken'
-      ? '[REDACTED]'
-      : redactAdmissionTokens(item),
-  }), {});
+  const serialized = JSON.stringify(value, (key, item) => (
+    key === 'fullSyncAdmissionToken' ? '[REDACTED]' : item
+  ));
+  return serialized === undefined ? value : JSON.parse(serialized);
 };
 
 class Plugin {
