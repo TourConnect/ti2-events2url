@@ -5,6 +5,14 @@ const {
     NODE_ENV: env,
   },
 } = process;
+const PRODUCT_CACHE_SAVE_EVENT = 'bookingsProductSearch:cache:save';
+
+const redactAdmissionTokens = value => {
+  const serialized = JSON.stringify(value, (key, item) => (
+    key === 'fullSyncAdmissionToken' ? '[REDACTED]' : item
+  ));
+  return serialized === undefined ? value : JSON.parse(serialized);
+};
 
 class Plugin {
   constructor(params = {}) {
@@ -23,8 +31,11 @@ class Plugin {
     }
     eventsArr.forEach(eventName => {
       eventEmmiter.on(eventName, async function (body) {
+        const forwardedBody = eventName === PRODUCT_CACHE_SAVE_EVENT
+          ? body
+          : redactAdmissionTokens(body);
         const payload = {
-          body,
+          body: forwardedBody,
           event: eventName,
           eventTime: new Date().toISOString(),
           source: pluginObj.Source || 'ti2',
@@ -46,10 +57,17 @@ class Plugin {
               statusText: err.response && err.response.statusText,
               url: err.config && err.config.url
             };
-            console.error(`[ti2-events2url] Failed to send event to eventURL`, payload, errorInfo);
+            console.error(
+              `[ti2-events2url] Failed to send event to eventURL`,
+              redactAdmissionTokens(payload),
+              errorInfo,
+            );
           }
         } else {
-          console.log('[ti2-events2url] unable to send event (size constraint)', payload);
+          console.log(
+            '[ti2-events2url] unable to send event (size constraint)',
+            redactAdmissionTokens(payload),
+          );
         }
       });
     });
