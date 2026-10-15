@@ -139,4 +139,137 @@ describe('Plugin', () => {
     expect(axios.post.mock.calls[0][1].body.fullSyncAdmissionToken)
       .toBe('reservation-owner');
   });
+
+  describe('recordProductCacheSave', () => {
+    const body = {
+      pluginName: 'tourplannx',
+      userId: 'company-1',
+      hint: 'Desk A',
+      forceRefresh: true,
+      fullSyncTrigger: 'scheduled',
+      productCount: 4,
+      optionCount: 8,
+      cacheFingerprint: 'a'.repeat(64),
+      cacheSavedAt: 1700000000000,
+      cacheVersion: 1700000000000000,
+    };
+
+    test('awaits Filematch recording and returns the generation id', async () => {
+      const axios = {
+        post: jest.fn().mockResolvedValue({
+          data: { status: 'recorded', marker: { generationId: 'catalog-generation' } },
+        }),
+      };
+      const plugin = new Plugin({
+        eventsURL: 'http://filematch/ti2events',
+        authorization: 'Bearer service-token',
+        axios,
+      });
+
+      await expect(plugin.recordProductCacheSave(body)).resolves.toBe('catalog-generation');
+      expect(axios.post).toHaveBeenCalledWith(
+        'http://filematch/ti2events',
+        expect.objectContaining({
+          event: 'bookingsProductSearch:cache:save',
+          body,
+          source: 'ti2',
+        }),
+        expect.objectContaining({
+          headers: { Authorization: 'Bearer service-token' },
+          timeout: 30000,
+        }),
+      );
+    });
+
+    test('retries transient 5xx failures', async () => {
+      jest.useFakeTimers();
+      try {
+        const axios = {
+          post: jest.fn()
+            .mockRejectedValueOnce({ response: { status: 503 } })
+            .mockRejectedValueOnce({ response: { status: 502 } })
+            .mockResolvedValueOnce({
+              data: { status: 'recorded', marker: { generationId: 'retry-generation' } },
+            }),
+        };
+        const plugin = new Plugin({
+          eventsURL: 'http://filematch/ti2events',
+          authorization: 'Bearer service-token',
+          axios,
+        });
+
+        const resultPromise = plugin.recordProductCacheSave(body);
+        await jest.runAllTimersAsync();
+        await expect(resultPromise).resolves.toBe('retry-generation');
+        expect(axios.post).toHaveBeenCalledTimes(3);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    test.each([400, 409, 412])('does not retry HTTP %s', async status => {
+      const error = { response: { status } };
+      const axios = { post: jest.fn().mockRejectedValue(error) };
+      const plugin = new Plugin({
+        eventsURL: 'http://filematch/ti2events',
+        authorization: 'Bearer service-token',
+        axios,
+      });
+
+      await expect(plugin.recordProductCacheSave(body)).rejects.toBe(error);
+      expect(axios.post).toHaveBeenCalledTimes(1);
+    });
+
+    test('rejects skipped Filematch responses', async () => {
+      const axios = {
+        post: jest.fn().mockResolvedValue({ data: { status: 'skipped', reason: 'already_running' } }),
+      };
+      const plugin = new Plugin({
+        eventsURL: 'http://filematch/ti2events',
+        authorization: 'Bearer service-token',
+        axios,
+      });
+
+      await expect(plugin.recordProductCacheSave(body))
+        .rejects.toThrow('Filematch did not accept TourPlan sync metadata recording');
+    });
+
+    test('rejects recorded responses without a generation id', async () => {
+      const axios = {
+        post: jest.fn().mockResolvedValue({ data: { status: 'recorded', marker: {} } }),
+      };
+      const plugin = new Plugin({
+        eventsURL: 'http://filematch/ti2events',
+        authorization: 'Bearer service-token',
+        axios,
+      });
+
+      await expect(plugin.recordProductCacheSave(body))
+        .rejects.toThrow('Filematch did not return a generation id');
+    });
+
+    test('rejects oversized payloads', async () => {
+      const { sizeInKB } = require('limit-object-size');
+      sizeInKB.mockReturnValueOnce(256);
+      const axios = { post: jest.fn() };
+      const plugin = new Plugin({
+        eventsURL: 'http://filematch/ti2events',
+        authorization: 'Bearer service-token',
+        axios,
+      });
+
+      await expect(plugin.recordProductCacheSave(body))
+        .rejects.toThrow('cannot record product cache save (size constraint)');
+      expect(axios.post).not.toHaveBeenCalled();
+    });
+
+    test('requires eventsURL, axios, and authorization', async () => {
+      await expect(new Plugin({}).recordProductCacheSave(body))
+        .rejects.toThrow('requires eventsURL and axios');
+      await expect(new Plugin({
+        eventsURL: 'http://filematch/ti2events',
+        axios: { post: jest.fn() },
+      }).recordProductCacheSave(body)).rejects.toThrow('requires authorization');
+    });
+  });
 });
